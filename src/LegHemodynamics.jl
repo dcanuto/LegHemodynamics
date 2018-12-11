@@ -1,4 +1,4 @@
-module LegModule
+module LegHemodynamics
 
 importall NumericalIntegration
 importall MAT
