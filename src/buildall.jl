@@ -1,25 +1,25 @@
-type CVSystem # entire solution
-    branches::CVModule.ArterialBranches
-    solverparams::CVModule.SolverParams
+type LegSystem # entire solution
+    branches::LegHemodynamics.ArterialBranches
+    solverparams::LegHemodynamics.SolverParams
     t::Vector{Float64}
     arterialvolume::Float64
     peripheralvolume::Float64
     initialvolume::Float64
     finalvolume::Float64
 
-    function CVSystem(filename="test.csv",restart="no")
+    function LegSystem(filename="test.csv",restart="no")
         this = new()
         if restart == "no"
-            this.branches = CVModule.ArterialBranches(filename);
+            this.branches = LegHemodynamics.ArterialBranches(filename);
         elseif restart == "yes"
             vars = MAT.matread(filename);
             sys = vars["system"];
             branches = sys["branches"];
-            this.branches = CVModule.ArterialBranches(filename,branches,restart)
+            this.branches = LegHemodynamics.ArterialBranches(filename,branches,restart)
         else
             error("Keyword restart must either be yes or no. Aborting.")
         end
-        this.solverparams = CVModule.SolverParams();
+        this.solverparams = LegHemodynamics.SolverParams();
         this.t = Vector{Float64}[];
         return this
     end
@@ -33,31 +33,31 @@ function buildall(filename="test.csv";numbeatstotal=1,restart="no",injury="no")
     # Vdefault = [370.,370.,400.,500.,1400.]*cm3Tom3;
     # Ldefault = 5e-5*mmHgToPa/cm3Tom3;
     if restart == "no"
-        system = CVModule.CVSystem(filename);
+        system = LegHemodynamics.LegSystem(filename);
         system.solverparams.numbeatstotal = numbeatstotal;
-        # CVModule.calcbranchprops!(system);
-        # CVModule.discretizebranches!(system);
-        # CVModule.assignterminals!(system,Rdefault,Cdefault,Vdefault,Ldefault,lowerflowfraction,
+        LegHemodynamics.calcbranchprops!(system);
+        # LegHemodynamics.discretizebranches!(system);
+        # LegHemodynamics.assignterminals!(system,Rdefault,Cdefault,Vdefault,Ldefault,lowerflowfraction,
         #     venousfractionofR,venousfractionofL,venousfractionofC,venousfractionofV0);
-        # CVModule.discretizeperiphery!(system);
-        # CVModule.applybranchics!(system);
-        # CVModule.applyperipheryics!(system);
-        # CVModule.applycustomics!(system);
+        # LegHemodynamics.discretizeperiphery!(system);
+        # LegHemodynamics.applybranchics!(system);
+        # LegHemodynamics.applyperipheryics!(system);
+        # LegHemodynamics.applycustomics!(system);
     elseif restart == "yes"
         vars = MAT.matread(filename);
         sys = vars["system"];
         branches = sys["branches"];
         term = branches["term"];
-        system = CVModule.CVSystem(filename,restart);
+        system = LegHemodynamics.LegSystem(filename,restart);
         system.solverparams.numbeatstotal = numbeatstotal;
-        CVModule.calcbranchprops!(system,branches,restart);
-        CVModule.discretizebranches!(system,sys,restart);
-        CVModule.assignterminals!(system,Rdefault,Cdefault,Vdefault,Ldefault,lowerflowfraction,
+        LegHemodynamics.calcbranchprops!(system,branches,restart);
+        LegHemodynamics.discretizebranches!(system,sys,restart);
+        LegHemodynamics.assignterminals!(system,Rdefault,Cdefault,Vdefault,Ldefault,lowerflowfraction,
             venousfractionofR,venousfractionofL,venousfractionofC,venousfractionofV0,term,restart);
-        CVModule.discretizeperiphery!(system);
-        CVModule.applybranchics!(system,sys,restart);
-        CVModule.applyperipheryics!(system,sys,restart);
+        LegHemodynamics.discretizeperiphery!(system);
+        LegHemodynamics.applybranchics!(system,sys,restart);
+        LegHemodynamics.applyperipheryics!(system,sys,restart);
     end
-    # CVModule.updatevolumes!(system,0);
+    # LegHemodynamics.updatevolumes!(system,0);
     return system
 end

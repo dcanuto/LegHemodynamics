@@ -1,4 +1,4 @@
-importall LegModule
+importall LegHemodynamics
 
 function main()
 
@@ -16,15 +16,15 @@ if assimflag == "no"
     elseif rstflag == "yes"
         loadfile = "lhoat2_$colnum.mat"; # restart file
     end
-    system = CVModule.buildall(loadfile;numbeatstotal=10,restart=rstflag);
-    savefile = "lhoat2_$colnum.mat" # filename for saving (only used if saveflag == "yes")
+    system = LegHemodynamics.buildall(loadfile;numbeatstotal=10,restart=rstflag);
+    # savefile = "lhoat2_$colnum.mat" # filename for saving (only used if saveflag == "yes")
 elseif assimflag == "yes"
     ensemblesize = 3;
     if rstflag == "no"
-        loadfiles = ["arterytree.csv" for i=1:ensemblesize];
+        loadfiles = ["arterylist.txt" for i=1:ensemblesize];
     elseif rstflag == "yes" loadfiles = ["test_1_$i.mat" for i=1:ensemblesize];
     end
-    systems = pmap((a1)->CVModule.buildall(a1;numbeatstotal=1,restart=rstflag),loadfiles);
+    systems = pmap((a1)->LegHemodynamics.buildall(a1;numbeatstotal=1,restart=rstflag),loadfiles);
     savefiles = ["test_1_$i.mat" for i=1:ensemblesize];
 end
 
