@@ -1,9 +1,10 @@
-function discretizebranches!(system::CVSystem,old=Dict("a"=>0),restart="no")
+function discretizebranches!(system::LegSystem,old=Dict("a"=>0),restart="no")
     h = [];
+    th = 0.8; # heart period in seconds
 
     # branch grid spacing
     for i in 1:length(system.branches.ID)
-        push!(system.branches.k,system.branches.lengthincm[i]*cmTom/
+        push!(system.branches.k,system.branches.lengthinmm[i]*mmTom/
             (system.solverparams.JL-1));
         push!(h,system.solverparams.CFL*system.branches.k[i]/
             system.branches.c0[i][end]);
@@ -16,8 +17,7 @@ function discretizebranches!(system::CVSystem,old=Dict("a"=>0),restart="no")
     system.solverparams.h = 1e-4;
 
     if restart == "no"
-        system.solverparams.numsteps = ceil(system.heart.activation.th[1]/
-            system.solverparams.h);
+        system.solverparams.numsteps = ceil(th/system.solverparams.h);
 
         # allocate space for 1D domain solution variables
         for i in 1:length(system.branches.ID)

@@ -2,10 +2,6 @@ type LegSystem # entire solution
     branches::LegHemodynamics.ArterialBranches
     solverparams::LegHemodynamics.SolverParams
     t::Vector{Float64}
-    arterialvolume::Float64
-    peripheralvolume::Float64
-    initialvolume::Float64
-    finalvolume::Float64
 
     function LegSystem(filename="test.csv",restart="no")
         this = new()
@@ -36,7 +32,7 @@ function buildall(filename="test.csv";numbeatstotal=1,restart="no",injury="no")
         system = LegHemodynamics.LegSystem(filename);
         system.solverparams.numbeatstotal = numbeatstotal;
         LegHemodynamics.calcbranchprops!(system);
-        # LegHemodynamics.discretizebranches!(system);
+        LegHemodynamics.discretizebranches!(system);
         # LegHemodynamics.assignterminals!(system,Rdefault,Cdefault,Vdefault,Ldefault,lowerflowfraction,
         #     venousfractionofR,venousfractionofL,venousfractionofC,venousfractionofV0);
         # LegHemodynamics.discretizeperiphery!(system);

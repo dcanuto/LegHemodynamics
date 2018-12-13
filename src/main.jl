@@ -28,6 +28,59 @@ elseif assimflag == "yes"
     savefiles = ["test_1_$i.mat" for i=1:ensemblesize];
 end
 
+# create interpolation object for upstream flow velocity data (needed for proximal BC)
+patientdata = MAT.matread("flowrates_mL.mat");
+tdata = reshape(patientdata["t"],101);
+udata = reshape(patientdata["u_pop_cms"],101)*LegHemodynamics.cmTom;
+spl = Dierckx.Spline1D(tdata,udata;k=1);
+
+# timers
+if assimflag == "no"
+    times = LegHemodynamics.CVTimer();
+elseif assimflag == "yes"
+    times = [LegHemodynamics.CVTimer() for i=1:ensemblesize];
+end
+
+# collect all IDs of terminal/non-terminal branches
+terms = Int64[];
+splits = Int64[];
+if assimflag == "no"
+    for i = 1:length(system.branches.ID)
+        if isempty(system.branches.children[i])
+            push!(terms,i);
+        else
+            push!(splits,i);
+        end
+    end
+elseif assimflag == "yes"
+    for i = 1:length(systems[1].branches.ID)
+        if isempty(systems[1].branches.children[i])
+            push!(terms,i);
+        else
+            push!(splits,i);
+        end
+    end
+    term_itr = [terms for i=1:ensemblesize];
+    split_itr = [splits for i=1:ensemblesize];
+end
+
+# time step counter
+if assimflag == "no"
+    n = system.solverparams.nstart;
+elseif assimflag == "yes"
+    n = [systems[1].solverparams.nstart for i=1:ensemblesize];
+end
+
+# solver loop
+while n < 7000
+    # interpolate proximal flow velocity from patient data
+    uprox = spl(system.solverparams.h*n);
+    if mod(n,100) == 0
+        println("Upstream u at t = $(system.solverparams.h*n) s: $uprox m/s")
+    end
+    n+=1
+end
+
 if saveflag == "yes"
     if assimflag == "no"
         file = MAT.matopen(savefile, "w")
