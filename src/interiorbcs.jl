@@ -3,14 +3,14 @@ function interiorbcs!(system::LegSystem,n::Int64,split::Int64,
     # children = system.branches.children[split];
     # println("Interior boundary function assignment:")
     if length(children) == 1
-        f = LegModule.fsingle!;
-        J = LegModule.Jsingle!;
+        f = LegHemodynamics.fsingle!;
+        J = LegHemodynamics.Jsingle!;
     elseif length(children) == 2
-        f = LegModule.fdouble!;
-        J = LegModule.Jdouble!;
+        f = LegHemodynamics.fdouble!;
+        J = LegHemodynamics.Jdouble!;
     elseif length(children) == 3
-        f = LegModule.ftriple!;
-        J = LegModule.Jtriple!;
+        f = LegHemodynamics.ftriple!;
+        J = LegHemodynamics.Jtriple!;
     end
     # println("Interior boundary allocation:")
     W = zeros(length(children)+1);
@@ -31,7 +31,7 @@ function interiorbcs!(system::LegSystem,n::Int64,split::Int64,
     Anew = zeros(length(children)+1);
     iters = Int64[0];
     # println("Interior Newton solver:")
-    LegModule.solvesplits!(iters,Qnew,Anew,children,Q,A,W,beta,A0,c0,
+    LegHemodynamics.solvesplits!(iters,Qnew,Anew,children,Q,A,W,beta,A0,c0,
         system.solverparams.rho,f,J,system.solverparams.maxiter,
         system.solverparams.maxval,system.solverparams.epsJ,
         system.solverparams.epsN)

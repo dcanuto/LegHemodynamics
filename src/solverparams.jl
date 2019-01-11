@@ -24,10 +24,11 @@ type SolverParams
     epsN::Float64
     maxval::Float64
     totaliter::Int64
+    th::Float64
 
     function SolverParams()
         this = new()
-        this.CFL = 0.5;
+        this.CFL = 0.7;
         this.JL = 11;
         this.acols = [1:this.JL;];
         this.qcols = [this.JL+1:2*this.JL;];
@@ -50,6 +51,7 @@ type SolverParams
         this.epsN = 1e-8;
         this.maxval = 1e7;
         this.totaliter = 0;
+        this.th = 0.8;
         return this
     end
 end

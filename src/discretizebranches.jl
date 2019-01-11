@@ -1,6 +1,6 @@
 function discretizebranches!(system::LegSystem,old=Dict("a"=>0),restart="no")
     h = [];
-    th = 0.8; # heart period in seconds
+    th = system.solverparams.th; # heart period in seconds
 
     # branch grid spacing
     for i in 1:length(system.branches.ID)
@@ -11,13 +11,15 @@ function discretizebranches!(system::LegSystem,old=Dict("a"=>0),restart="no")
     end
 
     # time step guaranteed to satisfy CFL for all branches
-    # system.solverparams.h = minimum(h);
+    system.solverparams.h = minimum(h);
+    println("Time step size: $(system.solverparams.h) s")
 
     # fix time step size to couple with 3D liver model
-    system.solverparams.h = 1e-4;
+    # system.solverparams.h = 1e-4;
 
     if restart == "no"
         system.solverparams.numsteps = ceil(th/system.solverparams.h);
+        println("Number of time steps: $(system.solverparams.numsteps)")
 
         # allocate space for 1D domain solution variables
         for i in 1:length(system.branches.ID)
@@ -50,9 +52,8 @@ function discretizebranches!(system::LegSystem,old=Dict("a"=>0),restart="no")
         system.t = system.solverparams.h*[0:1:size(system.branches.A[1],2)-1;];
     elseif restart == "yes"
         # determine time shift
-        temp = old["heart"];
-        temp = temp["activation"];
-        system.solverparams.tshift = old["t"][end] - sum(temp["th"][1:end-1]);
+        temp = old["solverparams"];
+        system.solverparams.tshift = old["t"][end] - temp["th"]*temp["numbeats"];
 
         # change grid spacing (e.g., for grid refinement study)
         JLnew = 11;
@@ -80,7 +81,7 @@ function discretizebranches!(system::LegSystem,old=Dict("a"=>0),restart="no")
         end
 
         # update total number of time steps
-        ntoadd = ceil((system.heart.activation.th[end]-
+        ntoadd = ceil((system.solverparams.th-
             system.solverparams.tshift)/system.solverparams.h);
         system.solverparams.numsteps=ntoadd;
 

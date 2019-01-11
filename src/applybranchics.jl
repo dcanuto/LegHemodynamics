@@ -1,4 +1,4 @@
-function applybranchics!(system::CVSystem,old=Dict("a"=>0),restart="no")
+function applybranchics!(system::LegSystem,old=Dict("a"=>0),restart="no")
     if restart == "no"
         Pstart = 70*mmHgToPa;
         for i in 1:length(system.branches.ID)

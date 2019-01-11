@@ -23,7 +23,17 @@ include("buildall.jl")
 # initialization/discretization
 include("calcbranchprops.jl")
 include("discretizebranches.jl")
-# include("discretizeperiphery.jl")
+include("assignterminals.jl")
+include("discretizeperiphery.jl")
+
+# initial conditions for each submodel
+include("applybranchics.jl")
+include("applyperipheryics.jl")
+# include("applycustomics.jl")
+include("updatediscretization.jl")
+
+# cardiac cycle counter
+include("setnumbeats.jl")
 
 # blood volume tracker
 # include("updatevolumes.jl")
@@ -41,10 +51,14 @@ include("J1d.jl")
 include("abseigs.jl")
 
 # 0D-1D coupling and 0D updates
-include("coupling.jl")
 include("interiorbcs.jl")
-include("coupledistal.jl")
 include("coupleproximal.jl")
+include("coupledistal.jl")
+include("coupling.jl")
+include("fdist.jl")
+include("Jdist.jl")
+include("newtondist.jl")
+include("linedist.jl")
 
 # 1D interior junction updates
 include("solvesplits.jl")

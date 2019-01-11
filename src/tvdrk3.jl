@@ -76,6 +76,7 @@ function tvdrk3!(system::LegSystem,times::CVTimer,n::Int64,splits::Vector{Int64}
         W20[:,i] .= ret2;
         lf[i] = ret3[1];
         lb[i] = ret4[1];
+        # println("Forward invariant at time step $n, artery $i: $(W1n[i]) m/s")
         # println("Invariant update:")
         invariantodes!(dW,W10[:,i],W20[:,i],lf[i],lb[i],Qcat,Acat,
             system.solverparams.rho,system.solverparams.mu,system.solverparams.diffusioncoeff,
@@ -212,10 +213,10 @@ function tvdrk3!(system::LegSystem,times::CVTimer,n::Int64,splits::Vector{Int64}
     for i = 1:length(system.branches.ID)
         # println("Third step, artery $i, time step $n.")
         Acat[1] = system.branches.A[i][1,n+2];
-        Acat[2:end-1] .= A1[:,i];
+        Acat[2:end-1] .= A2[:,i];
         Acat[end] = system.branches.A[i][end,n+2];
         Qcat[1] = system.branches.Q[i][1,n+2];
-        Qcat[2:end-1] .= Q1[:,i];
+        Qcat[2:end-1] .= Q2[:,i];
         Qcat[end] = system.branches.Q[i][end,n+2];
         # scalings
         As = ((system.solverparams.rho.*system.branches.c0[i][end].^2)./system.branches.beta[i][end]).^2;

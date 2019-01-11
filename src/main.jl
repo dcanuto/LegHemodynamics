@@ -2,11 +2,11 @@ importall LegHemodynamics
 
 function main()
 
-rstflag = "no" # restarting from scratch or previous simulation
+rstflag = "yes" # restarting from scratch or previous simulation
 hemoflag = "no" # 10% hemorrhage from left femoral artery
-saveflag = "no" # save solution to .mat file
+saveflag = "yes" # save solution to .mat file
 coupleflag = "no" # coupling to 3D liver tissue model
-timeflag = "no" # solver timing
+timeflag = "yes" # solver timing
 assimflag = "no" # patient data assimilation via EnKF
 
 # build solution struct or generate ensemble
@@ -14,10 +14,10 @@ if assimflag == "no"
     if rstflag == "no"
         loadfile = "arterylist.txt"; # default artery data file for new sim
     elseif rstflag == "yes"
-        loadfile = "lhoat2_$colnum.mat"; # restart file
+        loadfile = "test.mat"; # restart file
     end
-    system = LegHemodynamics.buildall(loadfile;numbeatstotal=10,restart=rstflag);
-    # savefile = "lhoat2_$colnum.mat" # filename for saving (only used if saveflag == "yes")
+    system = LegHemodynamics.buildall(loadfile;numbeatstotal=1,restart=rstflag);
+    savefile = "test.mat" # filename for saving (only used if saveflag == "yes")
 elseif assimflag == "yes"
     ensemblesize = 3;
     if rstflag == "no"
@@ -72,14 +72,33 @@ elseif assimflag == "yes"
 end
 
 # solver loop
-while n < 7000
+tic();
+while system.solverparams.numbeats < system.solverparams.numbeatstotal
+    # time within heart cycle
+    tp = system.t[n+1] - sum(system.solverparams.th*system.solverparams.numbeats);
     # interpolate proximal flow velocity from patient data
-    uprox = spl(system.solverparams.h*n);
+    uprox = spl(tp);
     if mod(n,100) == 0
         println("Upstream u at t = $(system.solverparams.h*n) s: $uprox m/s")
     end
-    n+=1
+    # TVD RK3 time integration
+    LegHemodynamics.tvdrk3!(system,times,n,splits,terms,uprox);
+    tic();
+    # arterial pressure update
+    LegHemodynamics.arterialpressure!(system,n);
+    # check for start of new cardiac cycle
+    oldnumbeats = system.solverparams.numbeats;
+    LegHemodynamics.setnumbeats!(system,n);
+    if oldnumbeats < system.solverparams.numbeats
+        # update time discretization
+        if system.solverparams.numbeats < system.solverparams.numbeatstotal
+            LegHemodynamics.updatediscretization!(system);
+        end
+    end
+    n+=1;
+    times.tr += toq();
 end
+times.tt += toc();
 
 if saveflag == "yes"
     if assimflag == "no"
@@ -99,8 +118,7 @@ if assimflag == "no"
     if timeflag == "yes"
         return system, n, times
     elseif timeflag == "no"
-        # return system, n
-        return system
+        return system, n
     end
 elseif assimflag == "yes"
     return n,times,term_itr,split_itr

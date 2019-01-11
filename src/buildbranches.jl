@@ -1,20 +1,14 @@
 type ArterialTerminal # lumped peripheral vasculature
     C::Vector{Float64}
     R::Vector{Float64}
-    L::Vector{Float64}
-    V0::Vector{Float64}
     P::Any
-    V::Any
     Q::Any
 
     function ArterialTerminal()
         this = new()
         this.C = Vector{Float64}[];
         this.R = Vector{Float64}[];
-        this.L = Vector{Float64}[];
-        this.V0 = Vector{Float64}[];
         this.P = Array{Float64,2}[];
-        this.V = Array{Float64,2}[];
         this.Q = Array{Float64,2}[];
         return this
     end
@@ -113,10 +107,13 @@ type ArterialBranches # 1D arterial domain
                 end
             end
         elseif restart == "yes"
+            temp = LegHemodynamics.loadtexttree("arterylist.txt");
+            this.name = [string(temp[1,:Name])]
+            this.parentname = [string(temp[1,:ParentName])]
             this.W1root = old["W1root"];
             this.W2root = old["W2root"];
-            this.name = [old["name"][1]];
-            this.parentname = [old["parentname"][1]];
+            # this.name = [old["name"][1]];
+            # this.parentname = [old["parentname"][1]];
             this.ID = [old["ID"][1]];
             this.parentID = [old["parentID"][1]];
             this.lengthinmm = [old["lengthinmm"][1]];
@@ -124,8 +121,10 @@ type ArterialBranches # 1D arterial domain
             this.A0 = [old["A0"][1]];
             this.beta = [old["beta"][1]]
             for i = 2:length(old["ID"])
-                push!(this.name,old["name"][i]);
-                push!(this.parentname,old["parentname"][i]);
+                push!(this.name,string(temp[i,:Name]))
+                push!(this.parentname,string(temp[i,:ParentName]))
+                # push!(this.name,old["name"][i]);
+                # push!(this.parentname,old["parentname"][i]);
                 push!(this.ID,old["ID"][i]);
                 push!(this.parentID,old["parentID"][i]);
                 push!(this.lengthinmm,old["lengthinmm"][i]);
