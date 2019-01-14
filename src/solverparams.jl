@@ -28,8 +28,8 @@ type SolverParams
 
     function SolverParams()
         this = new()
-        this.CFL = 0.7;
-        this.JL = 11;
+        this.CFL = 1.0;
+        this.JL = 5;
         this.acols = [1:this.JL;];
         this.qcols = [this.JL+1:2*this.JL;];
         this.acolspre = [2:this.JL-1;];

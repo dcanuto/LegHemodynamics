@@ -2,7 +2,7 @@ importall LegHemodynamics
 
 function main()
 
-rstflag = "yes" # restarting from scratch or previous simulation
+rstflag = "no" # restarting from scratch or previous simulation
 hemoflag = "no" # 10% hemorrhage from left femoral artery
 saveflag = "yes" # save solution to .mat file
 coupleflag = "no" # coupling to 3D liver tissue model
@@ -14,10 +14,10 @@ if assimflag == "no"
     if rstflag == "no"
         loadfile = "arterylist.txt"; # default artery data file for new sim
     elseif rstflag == "yes"
-        loadfile = "test.mat"; # restart file
+        loadfile = "test2.mat"; # restart file
     end
-    system = LegHemodynamics.buildall(loadfile;numbeatstotal=1,restart=rstflag);
-    savefile = "test.mat" # filename for saving (only used if saveflag == "yes")
+    system = LegHemodynamics.buildall(loadfile;numbeatstotal=10,restart=rstflag);
+    savefile = "test2.mat" # filename for saving (only used if saveflag == "yes")
 elseif assimflag == "yes"
     ensemblesize = 3;
     if rstflag == "no"
