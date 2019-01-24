@@ -68,7 +68,7 @@ function newtondist!(yout::Vector{Float64},iters::Vector{Int64},Ws::Float64,W2es
         # println("Root checking:")
         maximum!(d,abs.(JJ))
         D[1] = 1/d[1];
-        f(fvec,xx,D,C,R0,R1,Ws,W1,rho,beta,c0,a1,a2,Pn,h);
+        f(fvec,xn,D,C,R0,R1,Ws,W1,rho,beta,c0,a1,a2,Pn,h);
         # println(fvec)
         if norm(fvec) <= 100*epsN
             x .= xn;

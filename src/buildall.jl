@@ -23,9 +23,16 @@ end
 
 # build solution struct
 function buildall(filename="test.csv";numbeatstotal=1,restart="no",injury="no")
-    # # terminal properties adapted from Danielsen (1998)
-    Rdefault = ones(17)*0.21*mmHgToPa/cm3Tom3;
-    Cdefault = ones(17)*0.01*cm3Tom3/mmHgToPa;
+    # terminal properties from Joe's data
+    # Rdefault = [74.7761,136.1894,110.4835,98.8103,170.0850,247.8310,16.8961,
+    #     103.3964,280.8708,184.7235,143.7461,34.2842,51.0196,144.4766,250.2162,
+    #     138.8846,92.7085]*gTokg/(mmTom^4);
+    Rdefault = 0.75*[77.6909,141.4980,114.7901,102.6618,176.7149,257.4914,18.6383,
+        107.4268,291.8191,191.9240,149.3493,35.9008,53.0083,150.1083,259.9696,
+        142.5643,95.1046]*gTokg/(mmTom^4);
+    Cdefault = [0.08972235,0.04926296,0.06072485,0.06789874,0.03944552,0.02707124,
+        0.39707822,0.06488707,0.02388675,0.03631963,0.04667319,0.19569034,0.13150028,
+        0.04643721,0.02681318,0.04830696,0.0723676]*(mmTom^4)/gTokg;
     if restart == "no"
         system = LegHemodynamics.LegSystem(filename);
         system.solverparams.numbeatstotal = numbeatstotal;

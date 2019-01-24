@@ -56,12 +56,12 @@ function discretizebranches!(system::LegSystem,old=Dict("a"=>0),restart="no")
         system.solverparams.tshift = old["t"][end] - temp["th"]*temp["numbeats"];
 
         # change grid spacing (e.g., for grid refinement study)
-        JLnew = 11;
+        JLnew = 5;
 
         if JLnew != system.solverparams.JL
             system.solverparams.JL = JLnew;
             for i = 1:length(system.branches.ID)
-                system.branches.k[i] = system.branches.lengthincm[i]*cmTom/
+                system.branches.k[i] = system.branches.lengthinmm[i]*mmTom/
                     (system.solverparams.JL-1);
                 h[i] = system.solverparams.CFL*system.branches.k[i]/
                     system.branches.c0[i][end];

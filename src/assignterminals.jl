@@ -25,7 +25,8 @@ function assignterminals!(system::LegSystem,R::Vector{Float64},C::Vector{Float64
                 if restart == "no"
                     push!(system.branches.term[i].R,system.solverparams.rho*
                         system.branches.c0[i][end]/system.branches.A0[i][end]);
-                    push!(system.branches.term[i].R,R[termctr]);
+                    push!(system.branches.term[i].R,R[termctr]-system.branches.term[i].R[1]);
+                    println("Second resistance, artery $i: $(system.branches.term[i].R[end])")
                 elseif restart == "yes"
                     temp = old[i]["R"];
                     push!(system.branches.term[i].R,temp[1]);

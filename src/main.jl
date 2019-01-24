@@ -12,16 +12,16 @@ assimflag = "no" # patient data assimilation via EnKF
 # build solution struct or generate ensemble
 if assimflag == "no"
     if rstflag == "no"
-        loadfile = "arterylist.txt"; # default artery data file for new sim
+        loadfile = "arterylist_2.txt"; # default artery data file for new sim
     elseif rstflag == "yes"
-        loadfile = "test2.mat"; # restart file
+        loadfile = "test.mat"; # restart file
     end
-    system = LegHemodynamics.buildall(loadfile;numbeatstotal=10,restart=rstflag);
-    savefile = "test2.mat" # filename for saving (only used if saveflag == "yes")
+    system = LegHemodynamics.buildall(loadfile;numbeatstotal=15,restart=rstflag);
+    savefile = "test.mat" # filename for saving (only used if saveflag == "yes")
 elseif assimflag == "yes"
     ensemblesize = 3;
     if rstflag == "no"
-        loadfiles = ["arterylist.txt" for i=1:ensemblesize];
+        loadfiles = ["arterylist_2.txt" for i=1:ensemblesize];
     elseif rstflag == "yes" loadfiles = ["test_1_$i.mat" for i=1:ensemblesize];
     end
     systems = pmap((a1)->LegHemodynamics.buildall(a1;numbeatstotal=1,restart=rstflag),loadfiles);
@@ -82,7 +82,7 @@ while system.solverparams.numbeats < system.solverparams.numbeatstotal
         println("Upstream u at t = $(system.solverparams.h*n) s: $uprox m/s")
     end
     # TVD RK3 time integration
-    LegHemodynamics.tvdrk3!(system,times,n,splits,terms,uprox);
+    LegHemodynamics.tvdrk3!(system,times,n,splits,terms,-uprox);
     tic();
     # arterial pressure update
     LegHemodynamics.arterialpressure!(system,n);

@@ -52,6 +52,7 @@ type ArterialBranches # 1D arterial domain
         this.children = Vector{Int64}[];
         this.lengthinmm = Vector{Float64}[];
         this.radiusinmm = Vector{Float64}[];
+        # this.A0 = Array{Float64,1}[];
         this.A0 = Vector{Float64}[];
         this.beta = Vector{Float64}[];
         this.c0 = Array{Float64,1}[];
@@ -81,8 +82,9 @@ type ArterialBranches # 1D arterial domain
             this.parentID = [temp[1,:parentID]]
             this.lengthinmm = [temp[1,:length_mm]]
             this.radiusinmm = [temp[1,:radius_mm]]
-            this.A0 = [temp[1,:A0_m2]]
-            this.beta = [temp[1,:beta_Pam]]
+            factor = 1.0;
+            this.A0 = [factor*temp[1,:A0_m2]]
+            this.beta = [temp[1,:beta_Pam]/factor]
             for i = 2:length(temp[:Name])
                 push!(this.name,string(temp[i,:Name]))
                 push!(this.parentname,string(temp[i,:ParentName]))
@@ -90,8 +92,8 @@ type ArterialBranches # 1D arterial domain
                 push!(this.parentID,temp[i,:parentID])
                 push!(this.lengthinmm,temp[i,:length_mm])
                 push!(this.radiusinmm,temp[i,:radius_mm])
-                push!(this.A0,temp[i,:A0_m2])
-                push!(this.beta,temp[i,:beta_Pam])
+                push!(this.A0,factor*temp[i,:A0_m2])
+                push!(this.beta,temp[i,:beta_Pam]/factor)
             end
             for i in 1:size(temp[:children_1],1)
                 if !isa(temp[i,:children_1],Missings.Missing)
@@ -107,7 +109,7 @@ type ArterialBranches # 1D arterial domain
                 end
             end
         elseif restart == "yes"
-            temp = LegHemodynamics.loadtexttree("arterylist.txt");
+            temp = LegHemodynamics.loadtexttree("arterylist_2.txt");
             this.name = [string(temp[1,:Name])]
             this.parentname = [string(temp[1,:ParentName])]
             this.W1root = old["W1root"];
@@ -118,7 +120,7 @@ type ArterialBranches # 1D arterial domain
             this.parentID = [old["parentID"][1]];
             this.lengthinmm = [old["lengthinmm"][1]];
             this.radiusinmm = [old["radiusinmm"][1]];
-            this.A0 = [old["A0"][1]];
+            # this.A0 = [old["A0"][1]];
             this.beta = [old["beta"][1]]
             for i = 2:length(old["ID"])
                 push!(this.name,string(temp[i,:Name]))
@@ -129,7 +131,7 @@ type ArterialBranches # 1D arterial domain
                 push!(this.parentID,old["parentID"][i]);
                 push!(this.lengthinmm,old["lengthinmm"][i]);
                 push!(this.radiusinmm,old["radiusinmm"][i]);
-                push!(this.A0,old["A0"][i]);
+                # push!(this.A0,old["A0"][i]);
                 push!(this.beta,old["beta"][i]);
             end
             for i = 1:length(old["children"])
