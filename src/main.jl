@@ -37,6 +37,12 @@ if assimflag == "no"
     spl = Dierckx.Spline1D(tdata,udata;k=1);
 elseif assimflag == "yes"
     spl = [Dierckx.Spline1D(tdata,udata;k=1) for i=1:ensemblesize];
+    udata = reshape(patientdata["u_ant_cms"],101)*LegHemodynamics.cmTom;
+    splant = Dierckx.Spline1D(tdata,udata;k=1);
+    udata = reshape(patientdata["u_post_cms"],101)*LegHemodynamics.cmTom;
+    splpost = Dierckx.Spline1D(tdata,udata;k=1);
+    udata = reshape(patientdata["u_per_cms"],101)*LegHemodynamics.cmTom;
+    splper = Dierckx.Spline1D(tdata,udata;k=1);
 end
 
 # timers
@@ -67,6 +73,57 @@ elseif assimflag == "yes"
     end
     term_itr = [terms for i=1:ensemblesize];
     split_itr = [splits for i=1:ensemblesize];
+end
+
+# ensemble distributions, allocators, and scalings
+if assimflag == "yes"
+    nparams = 3;
+    nstates = 3;
+    nmeas = 3;
+    errors = LegHemodynamics.Errors(nparams);
+
+    X = [zeros(nstates) for i=1:ensemblesize];
+    θ = [zeros(nparams) for i=1:ensemblesize];
+    Y = [zeros(nmeas) for i=1:ensemblesize];
+
+    xhat = zeros(nstates);
+    θhat = zeros(nparams);
+    yhat = zeros(nmeas);
+
+    yi = [zeros(nmeas) for i=1:ensemblesize];
+
+    # parameter scalings (TODO)
+    θs = ones(nparams);
+    for i=1:ensemblesize
+        θs[1] += 1.;
+    end
+    θs /= ensemblesize;
+
+    # RTPS allocators
+    p = 0.5; # RTPS relaxation amount, ∃ [0.5,0.95]
+    c = zeros(ensemblesize);
+    σxb = zeros(nstates);
+    σxa = zeros(nstates);
+    σtb = zeros(nparams);
+    σta = ones(nparams);
+
+    tout = Float64[];
+    xout = Vector{Float64}[];
+    xoutv = Vector{Float64}[];
+    yout = Vector{Float64}[];
+    youtv = Vector{Float64}[];
+    innov = Vector{Float64}[];
+    ioutv = Vector{Float64}[];
+    θout = Vector{Float64}[];
+    θoutv = Vector{Float64}[];
+    Pθout = Vector{Float64}[];
+    Pθoutv = Vector{Float64}[];
+    Pxout = Vector{Float64}[];
+    Pxoutv = Vector{Float64}[];
+    lbx = Vector{Float64}[];
+    ubx = Vector{Float64}[];
+    lbxv = Vector{Float64}[];
+    ubxv = Vector{Float64}[];
 end
 
 # time step counter
@@ -116,6 +173,19 @@ elseif assimflag == "yes"
         if assimflag == "yes" && mod((n[1]-1)/nsamp[1],1) == 0
             println("Current time step: $(n[1]-1)")
             println("Current time: $(systems[1].t[n[1]])")
+
+            # time within heart cycle
+            tp = systems[1].t[n[1]+1] - sum(systems[1].solverparams.th*systems[1].solverparams.numbeats);
+            # non-dimensional measurement
+            y = -[splant(tp),splpost(tp),splper(tp)]/LegHemodynamics.us;
+            println("Scaled velocity measurements at t = $tp s: $y")
+
+            # generate measurement replicates
+            for i = 1:length(systems)
+                yi[i][1] = y[1] + rand(Distributions.Normal(0,errors.odev[1]/LegHemodynamics.us));
+                yi[i][2] = y[2] + rand(Distributions.Normal(0,errors.odev[2]/LegHemodynamics.us));
+                yi[i][3] = y[3] + rand(Distributions.Normal(0,errors.odev[3]/LegHemodynamics.us));
+            end
         end
     end
 end

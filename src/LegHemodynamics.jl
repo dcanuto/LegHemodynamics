@@ -5,9 +5,10 @@ importall MAT
 importall Dierckx
 importall CSV
 importall Missings
+importall Distributions
 
 # conversion factors and solver parameters
-include("conversions.jl")
+include("constants.jl")
 include("solverparams.jl")
 
 # file loader
@@ -29,14 +30,10 @@ include("discretizeperiphery.jl")
 # initial conditions for each submodel
 include("applybranchics.jl")
 include("applyperipheryics.jl")
-# include("applycustomics.jl")
 include("updatediscretization.jl")
 
 # cardiac cycle counter
 include("setnumbeats.jl")
-
-# blood volume tracker
-# include("updatevolumes.jl")
 
 # TVD RK3 + WENO3 for artery interiors
 include("tvdrk3.jl")
@@ -75,6 +72,7 @@ include("arterialpressure.jl")
 
 # data assimilation
 include("advancetime.jl")
+include("builderrors.jl")
 
 # main
 include("main.jl")
