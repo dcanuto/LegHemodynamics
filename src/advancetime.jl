@@ -29,20 +29,23 @@ function advancetime!(system::LegSystem,spl::Dierckx.Spline1D,times::CVTimer,
             n+=1;
         end
     elseif runtype == "assim"
-        # if injury == "no"
-        #     CVModule.tvdrk3!(system,times,n-1,splits,terms);
-        #     tic();
-        #     CVModule.update0d!(system,n-1,terms);
-        # elseif injury == "yes"
-        #     CVModule.tvdrk3!(system,times,n-1,splits,terms,injury);
-        #     tic();
-        #     CVModule.update0d!(system,n-1,terms,injury);
-        # end
-        # times.tc += toq();
-        # tic();
-        # CVModule.arterialpressure!(system,n-1);
-        # CVModule.regulateall!(system,n-1,terms);
-        # times.tr += toq();
+        # check if new cardiac cycle has just begun
+        numbeats = system.solverparams.numbeats;
+        ttotal = system.solverparams.th*(system.solverparams.numbeats+1);
+        if system.t[n+1] > ttotal
+            println("New cardiac cycle beginning. Decrementing number of cycles for assimilation.")
+            numbeats -= 1;
+        end
+        # time within heart cycle
+        tp = system.t[n] - sum(system.solverparams.th*numbeats);
+        # interpolate proximal flow velocity from patient data
+        uprox = spl(tp);
+        # TVD RK3 time integration
+        LegHemodynamics.tvdrk3!(system,times,n-1,splits,terms,-uprox);
+        tic();
+        # arterial pressure update
+        LegHemodynamics.arterialpressure!(system,n-1);
+        times.tr += toq();
     end
     if runtype == "predict"
         times.tt += toc();

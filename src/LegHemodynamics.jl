@@ -73,6 +73,7 @@ include("arterialpressure.jl")
 # data assimilation
 include("advancetime.jl")
 include("builderrors.jl")
+include("paramwalk.jl")
 
 # main
 include("main.jl")
