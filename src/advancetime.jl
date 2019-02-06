@@ -48,7 +48,7 @@ function advancetime!(system::LegSystem,spl::Dierckx.Spline1D,times::CVTimer,
         times.tr += toq();
     end
     if runtype == "predict"
-        times.tt += toc();
+        times.tt += toq();
     elseif runtype == "assim"
         times.tt = toq();
     end

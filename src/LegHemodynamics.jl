@@ -74,6 +74,7 @@ include("arterialpressure.jl")
 include("advancetime.jl")
 include("builderrors.jl")
 include("paramwalk.jl")
+include("applycustomics.jl")
 
 # main
 include("main.jl")

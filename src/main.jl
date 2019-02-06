@@ -2,7 +2,7 @@ importall LegHemodynamics
 
 function main()
 
-rstflag = "no" # restarting from scratch or previous simulation
+rstflag = "yes" # restarting from scratch or previous simulation
 hemoflag = "no" # 10% hemorrhage from left femoral artery
 saveflag = "yes" # save solution to .mat file
 coupleflag = "no" # coupling to 3D liver tissue model
@@ -19,15 +19,18 @@ if assimflag == "no"
     system = LegHemodynamics.buildall(loadfile;numbeatstotal=15,restart=rstflag);
     savefile = "test.mat" # filename for saving (only used if saveflag == "yes")
 elseif assimflag == "yes"
-    ensemblesize = 2;
+    ensemblesize = 10;
     if rstflag == "no"
         loadfiles = ["arterylist_2.txt" for i=1:ensemblesize];
     elseif rstflag == "yes"
         loadfiles = ["test_1_$i.mat" for i=1:ensemblesize];
     end
-    systems = pmap((a1)->LegHemodynamics.buildall(a1;numbeatstotal=1,restart=rstflag),loadfiles);
-    # randomize ICs (TODO)
+    systems = pmap((a1)->LegHemodynamics.buildall(a1;numbeatstotal=5,restart=rstflag),loadfiles);
     savefiles = ["test_1_$i.mat" for i=1:ensemblesize];
+    if rstflag == "no" # randomize ICs on new ensemble
+        soln = pmap((a1)->LegHemodynamics.applycustomics!(a1),systems);
+        systems = [soln[i] for i=1:ensemblesize];
+    end
 end
 
 # create interpolation object for upstream flow velocity data (needed for proximal BC)
@@ -428,6 +431,10 @@ elseif assimflag == "yes"
         end
         # output measurement time
         push!(tout,systems[1].t[n[1]])
+    end
+    tt = toc();
+    for i = 1:ensemblesize
+        times[i].tt += tt;
     end
 end
 
