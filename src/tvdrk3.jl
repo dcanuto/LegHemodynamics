@@ -111,6 +111,7 @@ function tvdrk3!(system::LegSystem,times::CVTimer,n::Int64,splits::Vector{Int64}
     # println("Split solve:")
     tic();
     for i = 1:length(splits)
+        # println("Solving interior boundary, parent ID: $(splits[i])")
         children = system.branches.children[splits[i]];
         Q = zeros(length(children)+1);
         A = zeros(length(children)+1);

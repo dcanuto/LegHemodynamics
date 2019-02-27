@@ -2,7 +2,7 @@ importall LegHemodynamics
 
 function main()
 
-rstflag = "yes" # restarting from scratch or previous simulation
+rstflag = "no" # restarting from scratch or previous simulation
 hemoflag = "no" # 10% hemorrhage from left femoral artery
 saveflag = "yes" # save solution to .mat file
 coupleflag = "no" # coupling to 3D liver tissue model
@@ -16,7 +16,7 @@ if assimflag == "no"
     elseif rstflag == "yes"
         loadfile = "test.mat"; # restart file
     end
-    system = LegHemodynamics.buildall(loadfile;numbeatstotal=15,restart=rstflag);
+    system = LegHemodynamics.buildall(loadfile;numbeatstotal=1,restart=rstflag);
     savefile = "test.mat" # filename for saving (only used if saveflag == "yes")
 elseif assimflag == "yes"
     ensemblesize = 10;
@@ -81,7 +81,7 @@ end
 
 # ensemble distributions, allocators, and scalings
 if assimflag == "yes"
-    nparams = 6;
+    nparams = 11;
     nstates = 3;
     nmeas = 3;
     errors = LegHemodynamics.Errors(nparams);
@@ -105,6 +105,11 @@ if assimflag == "yes"
         θs[4] += systems[i].branches.term[14].C[1];
         θs[5] += systems[i].branches.term[24].C[1];
         θs[6] += systems[i].branches.term[31].C[1];
+        θs[7] += systems[i].branches.termscalings[1];
+        θs[8] += systems[i].branches.termscalings[2];
+        θs[9] += systems[i].branches.beta[14][end];
+        θs[10] += systems[i].branches.beta[24][end];
+        θs[11] += systems[i].branches.beta[31][end];
     end
     θs /= ensemblesize;
 
@@ -148,6 +153,9 @@ if assimflag == "no"
     while system.solverparams.numbeats < system.solverparams.numbeatstotal
         # time within heart cycle
         tp = system.t[n+1] - sum(system.solverparams.th*system.solverparams.numbeats);
+        if mod(n,1000) == 0
+            println("Reached time step $n. t = $tp s.")
+        end
         # interpolate proximal flow velocity from patient data
         uprox = spl(tp);
         # TVD RK3 time integration
@@ -169,7 +177,7 @@ if assimflag == "no"
     end
     times.tt += toc();
 elseif assimflag == "yes"
-    nsamp = [1000 for i=1:ensemblesize];
+    nsamp = [300 for i=1:ensemblesize];
     while systems[1].solverparams.numbeats < systems[1].solverparams.numbeatstotal
         # normal time integration between measurements
         rflag = "predict";
@@ -187,6 +195,7 @@ elseif assimflag == "yes"
             tp = systems[1].t[n[1]+1] - sum(systems[1].solverparams.th*systems[1].solverparams.numbeats);
             # non-dimensional measurement (velocity)
             y = -[splant(tp),splpost(tp),splper(tp)]/LegHemodynamics.us;
+            # y = -[splant(tp)]/LegHemodynamics.us;
             println("Scaled velocity measurements at t = $tp s: $y")
 
             # generate measurement replicates
@@ -204,6 +213,11 @@ elseif assimflag == "yes"
                 θ[i][4] = systems[i].branches.term[14].C[1];
                 θ[i][5] = systems[i].branches.term[24].C[1];
                 θ[i][6] = systems[i].branches.term[31].C[1];
+                θ[i][7] = systems[i].branches.termscalings[1];
+                θ[i][8] = systems[i].branches.termscalings[2];
+                θ[i][9] = systems[i].branches.beta[14][end];
+                θ[i][10] = systems[i].branches.beta[24][end];
+                θ[i][11] = systems[i].branches.beta[31][end];
             end
 
             # forecast parameters (dimensional)
@@ -230,6 +244,23 @@ elseif assimflag == "yes"
                 systems[i].branches.term[14].C[1] = θ[i][4]*θs[4];
                 systems[i].branches.term[24].C[1] = θ[i][5]*θs[5];
                 systems[i].branches.term[31].C[1] = θ[i][6]*θs[6];
+                systems[i].branches.termscalings[1] = θ[i][7]*θs[7];
+                systems[i].branches.termscalings[2] = θ[i][8]*θs[8];
+                for j = 1:length(term_itr[1])
+                    if term_itr[i][j] != 14 && term_itr[i][j] != 24 && term_itr[i][j] != 31
+                        systems[i].branches.term[term_itr[i][j]].C[1] *= systems[i].branches.termscalings[1];
+                        systems[i].branches.term[term_itr[i][j]].R[2] *= systems[i].branches.termscalings[2];
+                    end
+                end
+                systems[i].branches.beta[14] = θ[i][9]*θs[9];
+                systems[i].branches.beta[24] = θ[i][10]*θs[10];
+                systems[i].branches.beta[31] = θ[i][11]*θs[11];
+                for j in [14,24,31]
+                    systems[i].branches.c0[j][end] = sqrt(0.5*systems[i].branches.beta[j]/
+                        systems[i].solverparams.rho)*systems[i].branches.A0[j][end]^0.25
+                    systems[i].branches.term[j].R[1] = systems[i].solverparams.rho*
+                        systems[i].branches.c0[j][end]/systems[i].branches.A0[j][end];
+                end
             end
 
             # forecast step
@@ -245,18 +276,18 @@ elseif assimflag == "yes"
             Y = [zeros(nmeas) for i=1:ensemblesize];
 
             for i = 1:ensemblesize
-                X[i][1] = systems[i].branches.Q[14][3,n[1]]/
-                    (systems[i].branches.A[14][3,n[1]]*LegHemodynamics.us);
-                X[i][2] = systems[i].branches.Q[24][3,n[1]]/
-                    (systems[i].branches.A[24][3,n[1]]*LegHemodynamics.us);
-                X[i][3] = systems[i].branches.Q[31][3,n[1]]/
-                    (systems[i].branches.A[31][3,n[1]]*LegHemodynamics.us);
-                Y[i][1] = systems[i].branches.Q[14][3,n[1]]/
-                    (systems[i].branches.A[14][3,n[1]]*LegHemodynamics.us);
-                Y[i][2] = systems[i].branches.Q[24][3,n[1]]/
-                    (systems[i].branches.A[24][3,n[1]]*LegHemodynamics.us);
-                Y[i][3] = systems[i].branches.Q[31][3,n[1]]/
-                    (systems[i].branches.A[31][3,n[1]]*LegHemodynamics.us);
+                X[i][1] = systems[i].branches.Q[14][2,n[1]]/
+                    (systems[i].branches.A[14][2,n[1]]*LegHemodynamics.us);
+                X[i][2] = systems[i].branches.Q[24][4,n[1]]/
+                    (systems[i].branches.A[24][4,n[1]]*LegHemodynamics.us);
+                X[i][3] = systems[i].branches.Q[31][2,n[1]]/
+                    (systems[i].branches.A[31][2,n[1]]*LegHemodynamics.us);
+                Y[i][1] = systems[i].branches.Q[14][2,n[1]]/
+                    (systems[i].branches.A[14][2,n[1]]*LegHemodynamics.us);
+                Y[i][2] = systems[i].branches.Q[24][4,n[1]]/
+                    (systems[i].branches.A[24][4,n[1]]*LegHemodynamics.us);
+                Y[i][3] = systems[i].branches.Q[31][2,n[1]]/
+                    (systems[i].branches.A[31][2,n[1]]*LegHemodynamics.us);
             end
 
             # forecast mean state, parameters, measurement
@@ -284,6 +315,7 @@ elseif assimflag == "yes"
             Pyy += diagm([(errors.odev[1]/LegHemodynamics.us)^2,
                 (errors.odev[2]/LegHemodynamics.us)^2,
                 (errors.odev[3]/LegHemodynamics.us)^2],0);
+            # Pyy += diagm([(errors.odev[1]/LegHemodynamics.us)^2],0);
 
             # println("Measurement covariance:")
             # display(Pyy)
@@ -314,35 +346,17 @@ elseif assimflag == "yes"
 
             # analysis parameters back into ensemble members
             for i = 1:length(soln)
-                if θ[i][1]*θs[1] <= errors.lb[1]
-                    println("Warning: analysis θ_1 below lower bound for member $i.
-                        Setting to lower bound of $(errors.lb[1]).")
-                    θ[i][1] = errors.lb[1]/θs[1];
-                end
-                if θ[i][2]*θs[2] <= errors.lb[2]
-                    println("Warning: analysis θ_2 below lower bound for member $i.
-                        Setting to lower bound of $(errors.lb[2]).")
-                    θ[i][2] = errors.lb[2]/θs[2];
-                end
-                if θ[i][3]*θs[3] <= errors.lb[3]
-                    println("Warning: analysis θ_3 below lower bound for member $i.
-                        Setting to lower bound of $(errors.lb[3]).")
-                    θ[i][3] = errors.lb[3]/θs[3];
-                end
-                if θ[i][4]*θs[4] <= errors.lb[4]
-                    println("Warning: analysis θ_1 below lower bound for member $i.
-                        Setting to lower bound of $(errors.lb[4]).")
-                    θ[i][4] = errors.lb[4]/θs[4];
-                end
-                if θ[i][5]*θs[5] <= errors.lb[5]
-                    println("Warning: analysis θ_1 below lower bound for member $i.
-                        Setting to lower bound of $(errors.lb[5]).")
-                    θ[i][5] = errors.lb[5]/θs[5];
-                end
-                if θ[i][6]*θs[6] <= errors.lb[6]
-                    println("Warning: analysis θ_1 below lower bound for member $i.
-                        Setting to lower bound of $(errors.lb[6]).")
-                    θ[i][6] = errors.lb[6]/θs[6];
+                for j = 1:nparams
+                    if θ[i][j]*θs[j] <= errors.lb[j]
+                        println("Warning: analysis θ_$j below lower bound for member $i.
+                            Setting to lower bound of $(errors.lb[j]).")
+                        θ[i][j] = errors.lb[j]/θs[j];
+                    end
+                    if θ[i][j]*θs[j] >= errors.ub[j]
+                        println("Warning: analysis θ_$j above upper bound for member $i.
+                            Setting to upper bound of $(errors.ub[j]).")
+                        θ[i][j] = errors.ub[j]/θs[j];
+                    end
                 end
                 systems[i].branches.term[14].R[2] = θ[i][1]*θs[1];
                 systems[i].branches.term[24].R[2] = θ[i][2]*θs[2];
@@ -350,6 +364,28 @@ elseif assimflag == "yes"
                 systems[i].branches.term[14].C[1] = θ[i][4]*θs[4];
                 systems[i].branches.term[24].C[1] = θ[i][5]*θs[5];
                 systems[i].branches.term[31].C[1] = θ[i][6]*θs[6];
+                systems[i].branches.termscalings[1] = θ[i][7]*θs[7];
+                systems[i].branches.termscalings[2] = θ[i][8]*θs[8];
+                for j = 1:length(term_itr[1])
+                    if term_itr[i][j] != 14 && term_itr[i][j] != 24 && term_itr[i][j] != 31
+                        systems[i].branches.term[term_itr[i][j]].C[1] *= systems[i].branches.termscalings[1];
+                        if systems[i].branches.term[term_itr[i][j]].C[1] < 1e-11
+                            println("Warning: Analysis terminal C < lower bound for member $i,
+                                artery $j. Setting to 1e-11.")
+                            systems[i].branches.term[term_itr[i][j]].C[1] = 1e-11
+                        end
+                        systems[i].branches.term[term_itr[i][j]].R[2] *= systems[i].branches.termscalings[2];
+                    end
+                end
+                systems[i].branches.beta[14] = θ[i][9]*θs[9];
+                systems[i].branches.beta[24] = θ[i][10]*θs[10];
+                systems[i].branches.beta[31] = θ[i][11]*θs[11];
+                for j in [14,24,31]
+                    systems[i].branches.c0[j][end] = sqrt(0.5*systems[i].branches.beta[j]/
+                        systems[i].solverparams.rho)*systems[i].branches.A0[j][end]^0.25
+                    systems[i].branches.term[j].R[1] = systems[i].solverparams.rho*
+                            systems[i].branches.c0[j][end]/systems[i].branches.A0[j][end];
+                end
             end
 
             # recalculate and output parameter averages (non-dimensional)
@@ -378,18 +414,18 @@ elseif assimflag == "yes"
             Y = [zeros(nmeas) for i=1:ensemblesize];
 
             for i = 1:ensemblesize
-                X[i][1] = systems[i].branches.Q[14][3,n[1]]/
-                    (systems[i].branches.A[14][3,n[1]]*LegHemodynamics.us);
-                X[i][2] = systems[i].branches.Q[24][3,n[1]]/
-                    (systems[i].branches.A[24][3,n[1]]*LegHemodynamics.us);
-                X[i][3] = systems[i].branches.Q[31][3,n[1]]/
-                    (systems[i].branches.A[31][3,n[1]]*LegHemodynamics.us);
-                Y[i][1] = systems[i].branches.Q[14][3,n[1]]/
-                    (systems[i].branches.A[14][3,n[1]]*LegHemodynamics.us);
-                Y[i][2] = systems[i].branches.Q[24][3,n[1]]/
-                    (systems[i].branches.A[24][3,n[1]]*LegHemodynamics.us);
-                Y[i][3] = systems[i].branches.Q[31][3,n[1]]/
-                    (systems[i].branches.A[31][3,n[1]]*LegHemodynamics.us);
+                X[i][1] = systems[i].branches.Q[14][2,n[1]]/
+                    (systems[i].branches.A[14][2,n[1]]*LegHemodynamics.us);
+                X[i][2] = systems[i].branches.Q[24][4,n[1]]/
+                    (systems[i].branches.A[24][4,n[1]]*LegHemodynamics.us);
+                X[i][3] = systems[i].branches.Q[31][2,n[1]]/
+                    (systems[i].branches.A[31][2,n[1]]*LegHemodynamics.us);
+                Y[i][1] = systems[i].branches.Q[14][2,n[1]]/
+                    (systems[i].branches.A[14][2,n[1]]*LegHemodynamics.us);
+                Y[i][2] = systems[i].branches.Q[24][4,n[1]]/
+                    (systems[i].branches.A[24][4,n[1]]*LegHemodynamics.us);
+                Y[i][3] = systems[i].branches.Q[31][2,n[1]]/
+                    (systems[i].branches.A[31][2,n[1]]*LegHemodynamics.us);
             end
 
             # second forecast mean state, measurement
@@ -488,9 +524,9 @@ if saveflag == "yes"
             write(file,"system",systems[i])
             close(file)
         end
-        vnames = ["t" "x" "Px" "theta" "Pt" "lb" "ub"];
+        vnames = ["t" "x" "Px" "theta" "thetascale" "Pt" "lb" "ub"];
         for i in 1:length(vnames)
-            file = MAT.matopen("$(vnames[i])_p.mat","w");
+            file = MAT.matopen("$(vnames[i])_pl.mat","w");
             if vnames[i] == "t"
                 write(file,"t",tout)
             elseif vnames[i] == "x"
@@ -499,6 +535,8 @@ if saveflag == "yes"
                 write(file,"Px",Pxoutv)
             elseif vnames[i] == "theta"
                 write(file,"theta",θoutv)
+            elseif vnames[i] == "thetascale"
+                write(file,"thetascale",θs)
             elseif vnames[i] == "Pt"
                 write(file,"Pt",Pθoutv)
             elseif vnames[i] == "lb"
@@ -518,7 +556,7 @@ if assimflag == "no"
         return system, n
     end
 elseif assimflag == "yes"
-    return n,tout,xoutv,youtv,ioutv,θoutv,Pθoutv,Pxoutv,lbxv,ubxv
+    return n,tout,xoutv,youtv,ioutv,θoutv,Pθoutv,Pxoutv,lbxv,ubxv,θs
 end
 
 end

@@ -42,6 +42,7 @@ type ArterialBranches # 1D arterial domain
     W2root::Float64
     children::Any
     term::Any
+    termscalings::Vector{Float64}
 
     function ArterialBranches(filename="test.csv",old=Dict("a"=>0),restart="no")
         this = new()
@@ -70,6 +71,7 @@ type ArterialBranches # 1D arterial domain
         this.W1end = Vector{Float64}[];
         this.W1 = Vector{Float64}[];
         this.W2 = Vector{Float64}[];
+        this.termscalings = Float64[];
         if restart == "no"
             this.W1root = Float64(0);
             this.W2root = Float64(0);
