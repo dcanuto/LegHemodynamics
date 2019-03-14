@@ -6,7 +6,7 @@ function advancetime!(system::LegSystem,spl::Dierckx.Spline1D,times::CVTimer,
             # time within heart cycle
             tp = system.t[n+1] - sum(system.solverparams.th*system.solverparams.numbeats);
             # interpolate proximal flow velocity from patient data
-            uprox = spl(tp) + rand(Distributions.Normal(0,0.05));
+            uprox = spl(tp) #+ rand(Distributions.Normal(0,0.05));
             # TVD RK3 time integration
             LegHemodynamics.tvdrk3!(system,times,n,splits,terms,-uprox);
             tic();
@@ -39,7 +39,7 @@ function advancetime!(system::LegSystem,spl::Dierckx.Spline1D,times::CVTimer,
         # time within heart cycle
         tp = system.t[n] - sum(system.solverparams.th*numbeats);
         # interpolate proximal flow velocity from patient data
-        uprox = spl(tp) + rand(Distributions.Normal(0,0.05));
+        uprox = spl(tp) #+ rand(Distributions.Normal(0,0.05));
         # TVD RK3 time integration
         LegHemodynamics.tvdrk3!(system,times,n-1,splits,terms,-uprox);
         tic();

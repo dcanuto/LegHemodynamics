@@ -75,6 +75,7 @@ include("advancetime.jl")
 include("builderrors.jl")
 include("paramwalk.jl")
 include("applycustomics.jl")
+include("rediscretizet.jl")
 
 # main
 include("main.jl")
