@@ -2,7 +2,7 @@ importall LegHemodynamics
 
 function main()
 
-rstflag = "no" # restarting from scratch or previous simulation
+rstflag = "yes" # restarting from scratch or previous simulation
 hemoflag = "no" # 10% hemorrhage from left femoral artery
 saveflag = "yes" # save solution to .mat file
 coupleflag = "no" # coupling to 3D liver tissue model
@@ -23,10 +23,10 @@ elseif assimflag == "yes"
     if rstflag == "no"
         loadfiles = ["arterylist_2.txt" for i=1:ensemblesize];
     elseif rstflag == "yes"
-        loadfiles = ["test_3_$i.mat" for i=1:ensemblesize];
+        loadfiles = ["beta_ends_loosebound_$i.mat" for i=1:ensemblesize];
     end
-    systems = pmap((a1)->LegHemodynamics.buildall(a1;numbeatstotal=5,restart=rstflag),loadfiles);
-    savefiles = ["test_3_$i.mat" for i=1:ensemblesize];
+    systems = pmap((a1)->LegHemodynamics.buildall(a1;numbeatstotal=1,restart=rstflag),loadfiles);
+    savefiles = ["beta_ends_loosebound_$i.mat" for i=1:ensemblesize];
     if rstflag == "no" # randomize ICs on new ensemble
         soln = pmap((a1)->LegHemodynamics.applycustomics!(a1),systems);
         systems = [soln[i] for i=1:ensemblesize];
@@ -89,7 +89,7 @@ end
 
 # ensemble distributions, allocators, and scalings
 if assimflag == "yes"
-    nparams = 14;
+    nparams = 11;
     nstates = 3;
     nmeas = 3;
     errors = LegHemodynamics.Errors(nparams);
@@ -115,15 +115,15 @@ if assimflag == "yes"
         θs[6] += systems[i].branches.term[31].C[1];
         θs[7] += systems[i].branches.termscalings[1];
         θs[8] += systems[i].branches.termscalings[2];
-        θs[9] += systems[i].branches.termscalings[3];
-        θs[10] += systems[i].branches.termscalings[4];
-        θs[11] += systems[i].branches.termscalings[5];
-        θs[12] += systems[i].branches.A0[14];
-        θs[13] += systems[i].branches.A0[24];
-        θs[14] += systems[i].branches.A0[31];
-        # θs[9] += systems[i].branches.beta[14];
-        # θs[10] += systems[i].branches.beta[24];
-        # θs[11] += systems[i].branches.beta[31];
+        # θs[9] += systems[i].branches.A0[14];
+        # θs[10] += systems[i].branches.A0[24];
+        # θs[11] += systems[i].branches.A0[31];
+        θs[9] += systems[i].branches.beta[14];
+        θs[10] += systems[i].branches.beta[24];
+        θs[11] += systems[i].branches.beta[31];
+        # θs[9] += systems[i].branches.YModinPa[14];
+        # θs[10] += systems[i].branches.YModinPa[24];
+        # θs[11] += systems[i].branches.YModinPa[31];
     end
     θs /= ensemblesize;
 
@@ -152,6 +152,14 @@ if assimflag == "yes"
     ubx = Vector{Float64}[];
     lbxv = Vector{Float64}[];
     ubxv = Vector{Float64}[];
+
+    # default parameter values for non-measured terminal constraints
+    Rdefault = 0.75*[77.6909,141.4980,114.7901,102.6618,176.7149,257.4914,18.6383,
+        107.4268,291.8191,191.9240,149.3493,35.9008,53.0083,150.1083,259.9696,
+        142.5643,95.1046]*LegHemodynamics.gTokg/(LegHemodynamics.mmTom^4);
+    Cdefault = [0.08972235,0.04926296,0.06072485,0.06789874,0.03944552,0.02707124,
+        0.39707822,0.06488707,0.02388675,0.03631963,0.04667319,0.19569034,0.13150028,
+        0.04643721,0.02681318,0.04830696,0.0723676]*(LegHemodynamics.mmTom^4)/LegHemodynamics.gTokg;
 end
 
 # time step counter
@@ -229,15 +237,15 @@ elseif assimflag == "yes"
                 θ[i][6] = systems[i].branches.term[31].C[1];
                 θ[i][7] = systems[i].branches.termscalings[1];
                 θ[i][8] = systems[i].branches.termscalings[2];
-                θ[i][9] = systems[i].branches.termscalings[3];
-                θ[i][10] = systems[i].branches.termscalings[4];
-                θ[i][11] = systems[i].branches.termscalings[5];
-                θ[i][12] = systems[i].branches.A0[14];
-                θ[i][13] = systems[i].branches.A0[24];
-                θ[i][14] = systems[i].branches.A0[31];
-                # θ[i][9] = systems[i].branches.beta[14];
-                # θ[i][10] = systems[i].branches.beta[24];
-                # θ[i][11] = systems[i].branches.beta[31];
+                # θ[i][9] = systems[i].branches.A0[14];
+                # θ[i][10] = systems[i].branches.A0[24];
+                # θ[i][11] = systems[i].branches.A0[31];
+                θ[i][9] = systems[i].branches.beta[14];
+                θ[i][10] = systems[i].branches.beta[24];
+                θ[i][11] = systems[i].branches.beta[31];
+                # θ[i][9] = systems[i].branches.YModinPa[14];
+                # θ[i][10] = systems[i].branches.YModinPa[24];
+                # θ[i][11] = systems[i].branches.YModinPa[31];
             end
 
             # forecast parameters (dimensional)
@@ -266,54 +274,65 @@ elseif assimflag == "yes"
                 systems[i].branches.term[31].C[1] = θ[i][6]*θs[6];
                 systems[i].branches.termscalings[1] = θ[i][7]*θs[7];
                 systems[i].branches.termscalings[2] = θ[i][8]*θs[8];
-                systems[i].branches.termscalings[3] = θ[i][9]*θs[9];
-                systems[i].branches.termscalings[4] = θ[i][10]*θs[10];
-                systems[i].branches.termscalings[5] = θ[i][11]*θs[11];
                 for j = 1:length(term_itr[1])
                     if term_itr[i][j] != 14 && term_itr[i][j] != 24 && term_itr[i][j] != 31
                         systems[i].branches.term[term_itr[i][j]].C[1] *= systems[i].branches.termscalings[1];
                         systems[i].branches.term[term_itr[i][j]].R[2] *= systems[i].branches.termscalings[2];
                     end
                 end
-                for j in [1:4,6;] # popliteal
-                    systems[i].branches.A0[j] *= mean(systems[i].branches.termscalings[3:5]);
-                end
-                for j in [5,7:13;] # anteriortibial
-                    systems[i].branches.A0[j] *= systems[i].branches.termscalings[3];
-                end
-                for j in [15:23;] # peroneal
-                    systems[i].branches.A0[j] *= systems[i].branches.termscalings[4];
-                end
-                for j in [16,25:30,32;] # posteriortibial
-                    systems[i].branches.A0[j] *= systems[i].branches.termscalings[5];
-                end
-                for j = 1:length(systems[i].branches.ID)
-                    if j != 14 && j != 24 && j != 31
-                        # systems[i].branches.A0[j] *= systems[i].branches.termscalings[3];
-                        if systems[i].branches.A0[j] < errors.Amin[j]
-                            # println("Warning: A0 below minimum for member $i, artery $j. Setting to $(errors.Amin[j]) m^2.")
-                            systems[i].branches.A0[j] = errors.Amin[j];
-                        end
-                        # systems[i].branches.beta[j] = sqrt(pi)*systems[i].branches.thicknessinmm[j]*LegHemodynamics.mmTom*
-                        #     systems[i].branches.YModinPa[j]/((1-0.5^2)*systems[i].branches.A0[j]);
-                        # systems[i].branches.beta[j] *= systems[i].branches.termscalings[3];
-                        # if systems[i].branches.beta[j] > errors.bmax[j]
-                        #     systems[i].branches.beta[j] = errors.bmax[j];
-                        # end
-                        # systems[i].branches.c0[j][end] = sqrt(0.5*systems[i].branches.beta[j]/
-                        #     systems[i].solverparams.rho)*systems[i].branches.A0[j]^0.25
-                    end
-                end
-                # systems[i].branches.beta[14] = θ[i][9]*θs[9];
-                # systems[i].branches.beta[24] = θ[i][10]*θs[10];
-                # systems[i].branches.beta[31] = θ[i][11]*θs[11];
-                systems[i].branches.A0[14] = θ[i][12]*θs[12];
-                systems[i].branches.A0[24] = θ[i][13]*θs[13];
-                systems[i].branches.A0[31] = θ[i][14]*θs[14];
-                # for j in [14,24,31]
-                for j = 1:length(systems[i].branches.ID)
-                    systems[i].branches.beta[j] = sqrt(pi)*systems[i].branches.thicknessinmm[j]*LegHemodynamics.mmTom*
-                        systems[i].branches.YModinPa[j]/((1-0.5^2)*systems[i].branches.A0[j]);
+                # for j in [1:4,6;] # popliteal
+                #     systems[i].branches.YModinPa[j] = 1/3*(θ[i][9]*θs[9]+
+                #         θ[i][10]*θs[10]+θ[i][11]*θs[11]);
+                # end
+                # for j in [5,7:14;] # anteriortibial
+                #     systems[i].branches.YModinPa[j] = θ[i][9]*θs[9];
+                # end
+                # for j in [15:24;] # peroneal
+                #     systems[i].branches.YModinPa[j] = θ[i][10]*θs[10];
+                # end
+                # for j in [16,25:32;] # posteriortibial
+                #     systems[i].branches.YModinPa[j] = θ[i][11]*θs[11];
+                # end
+                # for j = 1:length(systems[i].branches.ID)
+                #     if j != 14 && j != 24 && j != 31
+                #         # systems[i].branches.A0[j] *= systems[i].branches.termscalings[3];
+                #         # if systems[i].branches.A0[j] < errors.Amin[j]
+                #         #     # println("Warning: A0 below minimum for member $i, artery $j. Setting to $(errors.Amin[j]) m^2.")
+                #         #     systems[i].branches.A0[j] = errors.Amin[j];
+                #         # end
+                #         # systems[i].branches.beta[j] = sqrt(pi)*systems[i].branches.thicknessinmm[j]*LegHemodynamics.mmTom*
+                #         #     systems[i].branches.YModinPa[j]/((1-0.5^2)*systems[i].branches.A0[j]);
+                #         # systems[i].branches.beta[j] *= systems[i].branches.termscalings[3];
+                #         if systems[i].branches.beta[j] > errors.bmax[j]
+                #             systems[i].branches.beta[j] = errors.bmax[j];
+                #         end
+                #         # systems[i].branches.c0[j][end] = sqrt(0.5*systems[i].branches.beta[j]/
+                #             # systems[i].solverparams.rho)*systems[i].branches.A0[j]^0.25
+                #     end
+                # end
+                systems[i].branches.beta[14] = θ[i][9]*θs[9];
+                systems[i].branches.beta[24] = θ[i][10]*θs[10];
+                systems[i].branches.beta[31] = θ[i][11]*θs[11];
+                # for j in [1:4,6;] # popliteal
+                #     systems[i].branches.A0[j] *= 1/3*(θ[i][9]*θs[9]/systems[i].branches.A0[14]+
+                #         θ[i][10]*θs[10]/systems[i].branches.A0[24]+θ[i][11]*θs[11]/systems[i].branches.A0[31]);
+                # end
+                # for j in [5,7:13;] # anteriortibial
+                #     systems[i].branches.A0[j] *= θ[i][9]*θs[9]/systems[i].branches.A0[14];
+                # end
+                # for j in [15:23;] # peroneal
+                #     systems[i].branches.A0[j] *= θ[i][10]*θs[10]/systems[i].branches.A0[24];
+                # end
+                # for j in [16,25:30,32;] # posteriortibial
+                #     systems[i].branches.A0[j] *= θ[i][11]*θs[11]/systems[i].branches.A0[31];
+                # end
+                # systems[i].branches.A0[14] = θ[i][9]*θs[9];
+                # systems[i].branches.A0[24] = θ[i][10]*θs[10];
+                # systems[i].branches.A0[31] = θ[i][11]*θs[11];
+                for j in [14,24,31]
+                # for j = 1:length(systems[i].branches.ID)
+                    # systems[i].branches.beta[j] = sqrt(pi)*systems[i].branches.thicknessinmm[j]*LegHemodynamics.mmTom*
+                        # systems[i].branches.YModinPa[j]/((1-0.5^2)*systems[i].branches.A0[j]);
                     systems[i].branches.c0[j][end] = sqrt(0.5*systems[i].branches.beta[j]/
                         systems[i].solverparams.rho)*systems[i].branches.A0[j]^0.25
                     systems[i].branches.term[j].R[1] = systems[i].solverparams.rho*
@@ -370,7 +389,7 @@ elseif assimflag == "yes"
             xhat = mean(X);
             yhat = mean(Y);
             θhat = mean(θ);
-            println("Normalized ̂x, first forecast: $xhat")
+            # println("Normalized ̂x, first forecast: $xhat")
             println("Normalized ̂y, first forecast: $yhat")
             println("Normalized ̂θ, first forecast: $θhat")
 
@@ -424,13 +443,13 @@ elseif assimflag == "yes"
             for i = 1:length(soln)
                 for j = 1:nparams
                     if θ[i][j]*θs[j] <= errors.lb[j]
-                        println("Warning: analysis θ_$j below lower bound for member $i.
-                            Setting to lower bound of $(errors.lb[j]).")
+                        # println("Warning: analysis θ_$j below lower bound for member $i.
+                            # Setting to lower bound of $(errors.lb[j]).")
                         θ[i][j] = errors.lb[j]/θs[j];
                     end
                     if θ[i][j]*θs[j] >= errors.ub[j]
-                        println("Warning: analysis θ_$j above upper bound for member $i.
-                            Setting to upper bound of $(errors.ub[j]).")
+                        # println("Warning: analysis θ_$j above upper bound for member $i.
+                            # Setting to upper bound of $(errors.ub[j]).")
                         θ[i][j] = errors.ub[j]/θs[j];
                     end
                 end
@@ -442,59 +461,82 @@ elseif assimflag == "yes"
                 systems[i].branches.term[31].C[1] = θ[i][6]*θs[6];
                 systems[i].branches.termscalings[1] = θ[i][7]*θs[7];
                 systems[i].branches.termscalings[2] = θ[i][8]*θs[8];
-                systems[i].branches.termscalings[3] = θ[i][9]*θs[9];
-                systems[i].branches.termscalings[4] = θ[i][10]*θs[10];
-                systems[i].branches.termscalings[5] = θ[i][11]*θs[11];
                 for j = 1:length(term_itr[1])
                     if term_itr[i][j] != 14 && term_itr[i][j] != 24 && term_itr[i][j] != 31
                         systems[i].branches.term[term_itr[i][j]].C[1] *= systems[i].branches.termscalings[1];
-                        if systems[i].branches.term[term_itr[i][j]].C[1] < 1e-11
+                        # if systems[i].branches.term[term_itr[i][j]].C[1] < 1e-11
+                        #     systems[i].branches.term[term_itr[i][j]].C[1] = 1e-11;
+                        # end
+                        if systems[i].branches.term[term_itr[i][j]].C[1] < 0.5*Cdefault[j]
                             # println("Warning: Analysis terminal C < lower bound for member $i,
                                 # artery $j. Setting to 1e-11.")
-                            systems[i].branches.term[term_itr[i][j]].C[1] = 1e-11
+                            systems[i].branches.term[term_itr[i][j]].C[1] = 0.5*Cdefault[j];
+                        elseif systems[i].branches.term[term_itr[i][j]].C[1] < 1e-11
+                            systems[i].branches.term[term_itr[i][j]].C[1] = 1e-11;
+                        elseif systems[i].branches.term[term_itr[i][j]].C[1] > 10*Cdefault[j];
+                            systems[i].branches.term[term_itr[i][j]].C[1] = 10*Cdefault[j];
                         end
                         systems[i].branches.term[term_itr[i][j]].R[2] *= systems[i].branches.termscalings[2];
-                    end
-                end
-                for j in [1:4,6;] # popliteal
-                    systems[i].branches.A0[j] *= mean(systems[i].branches.termscalings[3:5]);
-                end
-                for j in [5,7:13;] # anteriortibial
-                    systems[i].branches.A0[j] *= systems[i].branches.termscalings[3];
-                end
-                for j in [15:23;] # peroneal
-                    systems[i].branches.A0[j] *= systems[i].branches.termscalings[4];
-                end
-                for j in [16,25:30,32;] # posteriortibial
-                    systems[i].branches.A0[j] *= systems[i].branches.termscalings[5];
-                end
-                for j = 1:length(systems[i].branches.ID)
-                    if j != 14 && j != 24 && j != 31
-                        # systems[i].branches.A0[j] *= systems[i].branches.termscalings[3];
-                        if systems[i].branches.A0[j] < errors.Amin[j]
-                            # println("Warning: A0 below minimum for member $i, artery $j. Setting to $(errors.Amin[j]) m^2.")
-                            systems[i].branches.A0[j] = errors.Amin[j];
+                        if systems[i].branches.term[term_itr[i][j]].R[2] < 0.5*Rdefault[j]
+                            systems[i].branches.term[term_itr[i][j]].R[2] = 0.5*Rdefault[j];
+                        elseif systems[i].branches.term[term_itr[i][j]].R[2] > 10*Rdefault[j]
+                            systems[i].branches.term[term_itr[i][j]].R[2] = 10*Rdefault[j];
                         end
-                        # systems[i].branches.beta[j] = sqrt(pi)*systems[i].branches.thicknessinmm[j]*LegHemodynamics.mmTom*
-                            # systems[i].branches.YModinPa[j]/((1-0.5^2)*systems[i].branches.A0[j]);
-                        # systems[i].branches.beta[j] *= systems[i].branches.termscalings[3];
-                        # if systems[i].branches.beta[j] > errors.bmax[j]
-                        #     systems[i].branches.beta[j] = errors.bmax[j];
-                        # end
-                        # systems[i].branches.c0[j][end] = sqrt(0.5*systems[i].branches.beta[j]/
-                        #     systems[i].solverparams.rho)*systems[i].branches.A0[j]^0.25
                     end
                 end
-                # systems[i].branches.beta[14] = θ[i][9]*θs[9];
-                # systems[i].branches.beta[24] = θ[i][10]*θs[10];
-                # systems[i].branches.beta[31] = θ[i][11]*θs[11];
-                systems[i].branches.A0[14] = θ[i][12]*θs[12];
-                systems[i].branches.A0[24] = θ[i][13]*θs[13];
-                systems[i].branches.A0[31] = θ[i][14]*θs[14];
-                # for j in [14,24,31]
-                for j = 1:length(systems[i].branches.ID)
-                    systems[i].branches.beta[j] = sqrt(pi)*systems[i].branches.thicknessinmm[j]*LegHemodynamics.mmTom*
-                        systems[i].branches.YModinPa[j]/((1-0.5^2)*systems[i].branches.A0[j]);
+                # for j in [1:4,6;] # popliteal
+                #     systems[i].branches.YModinPa[j] = 1/3*(θ[i][9]*θs[9]+
+                #         θ[i][10]*θs[10]+θ[i][11]*θs[11]);
+                # end
+                # for j in [5,7:14;] # anteriortibial
+                #     systems[i].branches.YModinPa[j] = θ[i][9]*θs[9];
+                # end
+                # for j in [15:24;] # peroneal
+                #     systems[i].branches.YModinPa[j] = θ[i][10]*θs[10];
+                # end
+                # for j in [16,25:32;] # posteriortibial
+                #     systems[i].branches.YModinPa[j] = θ[i][11]*θs[11];
+                # end
+                # for j = 1:length(systems[i].branches.ID)
+                #     if j != 14 && j != 24 && j != 31
+                #         # systems[i].branches.A0[j] *= systems[i].branches.termscalings[3];
+                #         # if systems[i].branches.A0[j] < errors.Amin[j]
+                #         #     # println("Warning: A0 below minimum for member $i, artery $j. Setting to $(errors.Amin[j]) m^2.")
+                #         #     systems[i].branches.A0[j] = errors.Amin[j];
+                #         # end
+                #         # systems[i].branches.beta[j] = sqrt(pi)*systems[i].branches.thicknessinmm[j]*LegHemodynamics.mmTom*
+                #             # systems[i].branches.YModinPa[j]/((1-0.5^2)*systems[i].branches.A0[j]);
+                #         # systems[i].branches.beta[j] *= systems[i].branches.termscalings[3];
+                #         if systems[i].branches.beta[j] > errors.bmax[j]
+                #             systems[i].branches.beta[j] = errors.bmax[j];
+                #         end
+                #         # systems[i].branches.c0[j][end] = sqrt(0.5*systems[i].branches.beta[j]/
+                #         #     systems[i].solverparams.rho)*systems[i].branches.A0[j]^0.25
+                #     end
+                # end
+                systems[i].branches.beta[14] = θ[i][9]*θs[9];
+                systems[i].branches.beta[24] = θ[i][10]*θs[10];
+                systems[i].branches.beta[31] = θ[i][11]*θs[11];
+                # for j in [1:4,6;] # popliteal
+                #     systems[i].branches.A0[j] *= 1/3*(θ[i][9]*θs[9]/systems[i].branches.A0[14]+
+                #         θ[i][10]*θs[10]/systems[i].branches.A0[24]+θ[i][11]*θs[11]/systems[i].branches.A0[31]);
+                # end
+                # for j in [5,7:13;] # anteriortibial
+                #     systems[i].branches.A0[j] *= θ[i][9]*θs[9]/systems[i].branches.A0[14];
+                # end
+                # for j in [15:23;] # peroneal
+                #     systems[i].branches.A0[j] *= θ[i][10]*θs[10]/systems[i].branches.A0[24];
+                # end
+                # for j in [16,25:30,32;] # posteriortibial
+                #     systems[i].branches.A0[j] *= θ[i][11]*θs[11]/systems[i].branches.A0[31];
+                # end
+                # systems[i].branches.A0[14] = θ[i][9]*θs[9];
+                # systems[i].branches.A0[24] = θ[i][10]*θs[10];
+                # systems[i].branches.A0[31] = θ[i][11]*θs[11];
+                for j in [14,24,31]
+                # for j = 1:length(systems[i].branches.ID)
+                    # systems[i].branches.beta[j] = sqrt(pi)*systems[i].branches.thicknessinmm[j]*LegHemodynamics.mmTom*
+                        # systems[i].branches.YModinPa[j]/((1-0.5^2)*systems[i].branches.A0[j]);
                     systems[i].branches.c0[j][end] = sqrt(0.5*systems[i].branches.beta[j]/
                         systems[i].solverparams.rho)*systems[i].branches.A0[j]^0.25
                     systems[i].branches.term[j].R[1] = systems[i].solverparams.rho*
@@ -524,7 +566,7 @@ elseif assimflag == "yes"
                 end
             end
             if minimum(h) != systems[1].solverparams.h
-                println("Old time step size: $(systems[1].solverparams.h) s")
+                # println("Old time step size: $(systems[1].solverparams.h) s")
                 for i = 1:length(soln)
                     systems[i].solverparams.h = minimum(h);
                 end
@@ -658,7 +700,7 @@ if saveflag == "yes"
         end
         vnames = ["t" "x" "Px" "theta" "thetascale" "Pt" "lb" "ub"];
         for i in 1:length(vnames)
-            file = MAT.matopen("$(vnames[i])_split.mat","w");
+            file = MAT.matopen("$(vnames[i])_beta_ends_loosebound.mat","w");
             if vnames[i] == "t"
                 write(file,"t",tout)
             elseif vnames[i] == "x"

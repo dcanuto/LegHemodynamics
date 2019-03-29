@@ -7,9 +7,6 @@ function calcbranchprops!(system::LegSystem,old=Dict("a"=>0),restart="no")
     if restart == "no"
         push!(system.branches.termscalings,1.)
         push!(system.branches.termscalings,1.)
-        push!(system.branches.termscalings,1.)
-        push!(system.branches.termscalings,1.)
-        push!(system.branches.termscalings,1.)
     elseif restart == "yes"
         append!(system.branches.termscalings,old["termscalings"])
     end
