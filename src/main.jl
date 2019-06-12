@@ -23,10 +23,10 @@ elseif assimflag == "yes"
     if rstflag == "no"
         loadfiles = ["arterylist_2_thick_branches.txt" for i=1:ensemblesize];
     elseif rstflag == "yes"
-        loadfiles = ["beta_maintain_p_$i.mat" for i=1:ensemblesize];
+        loadfiles = ["adjust_beta_$i.mat" for i=1:ensemblesize];
     end
     systems = pmap((a1)->LegHemodynamics.buildall(a1;numbeatstotal=5,restart=rstflag),loadfiles);
-    savefiles = ["beta_maintain_p_$i.mat" for i=1:ensemblesize];
+    savefiles = ["adjust_beta_$i.mat" for i=1:ensemblesize];
     if rstflag == "no" # randomize ICs on new ensemble
         soln = pmap((a1)->LegHemodynamics.applycustomics!(a1),systems);
         systems = [soln[i] for i=1:ensemblesize];
@@ -38,6 +38,7 @@ elseif assimflag == "yes"
         for i = 1:length(systems)
             systems[i].solverparams.h = minimum(h);
         end
+        systems = pmap((a1,a2)->LegHemodynamics.rediscretizet!(a1,a2),systems,zeros(Int64,length(systems)));
     end
 end
 
@@ -320,9 +321,6 @@ elseif assimflag == "yes"
                     # systems[i].branches.term[j].R[2] = systems[i].branches.termscalings[6]*Rdefault[k];
                     # k+=1;
                 end
-                systems[i].branches.beta[14] = θ[i][13]*θs[13];
-                systems[i].branches.beta[24] = θ[i][14]*θs[14];
-                systems[i].branches.beta[32] = θ[i][15]*θs[15];
                 for j in [1:4;] # popliteal
                     systems[i].branches.beta[j] *= 1/3*(θ[i][13]*θs[13]/systems[i].branches.beta[14]+
                         θ[i][14]*θs[14]/systems[i].branches.beta[24]+θ[i][15]*θs[15]/systems[i].branches.beta[32]);
@@ -336,6 +334,9 @@ elseif assimflag == "yes"
                 for j in [16,25:31;] # peroneal
                     systems[i].branches.beta[j] *= θ[i][15]*θs[15]/systems[i].branches.beta[32];
                 end
+                systems[i].branches.beta[14] = θ[i][13]*θs[13];
+                systems[i].branches.beta[24] = θ[i][14]*θs[14];
+                systems[i].branches.beta[32] = θ[i][15]*θs[15];
                 # systems[i].branches.A0[14] = θ[i][9]*θs[9];
                 # systems[i].branches.A0[24] = θ[i][10]*θs[10];
                 # systems[i].branches.A0[31] = θ[i][11]*θs[11];
@@ -520,26 +521,23 @@ elseif assimflag == "yes"
                         # if systems[i].branches.term[term_itr[i][j]].C[1] < 1e-11
                         #     systems[i].branches.term[term_itr[i][j]].C[1] = 1e-11;
                         # end
-                        if systems[i].branches.term[term_itr[i][j]].C[1] < 0.1*Cdefault[j]
+                        if systems[i].branches.term[term_itr[i][j]].C[1] < 0.5*Cdefault[j]
                             # println("Warning: Analysis terminal C < lower bound for member $i,
                                 # artery $j. Setting to 1e-11.")
-                            systems[i].branches.term[term_itr[i][j]].C[1] = 0.1*Cdefault[j];
+                            systems[i].branches.term[term_itr[i][j]].C[1] = 0.5*Cdefault[j];
                         elseif systems[i].branches.term[term_itr[i][j]].C[1] < 1e-12
                             systems[i].branches.term[term_itr[i][j]].C[1] = 1e-12;
-                        elseif systems[i].branches.term[term_itr[i][j]].C[1] > 100*Cdefault[j];
-                            systems[i].branches.term[term_itr[i][j]].C[1] = 100*Cdefault[j];
+                        elseif systems[i].branches.term[term_itr[i][j]].C[1] > 2*Cdefault[j];
+                            systems[i].branches.term[term_itr[i][j]].C[1] = 2*Cdefault[j];
                         end
                         # systems[i].branches.term[term_itr[i][j]].R[2] *= systems[i].branches.termscalings[2];
-                        if systems[i].branches.term[term_itr[i][j]].R[2] < 0.25*Rdefault[j]
-                            systems[i].branches.term[term_itr[i][j]].R[2] = 0.25*Rdefault[j];
-                        elseif systems[i].branches.term[term_itr[i][j]].R[2] > 100*Rdefault[j]
-                            systems[i].branches.term[term_itr[i][j]].R[2] = 100*Rdefault[j];
+                        if systems[i].branches.term[term_itr[i][j]].R[2] < 0.5*Rdefault[j]
+                            systems[i].branches.term[term_itr[i][j]].R[2] = 0.5*Rdefault[j];
+                        elseif systems[i].branches.term[term_itr[i][j]].R[2] > 2*Rdefault[j]
+                            systems[i].branches.term[term_itr[i][j]].R[2] = 2*Rdefault[j];
                         end
                     end
                 end
-                systems[i].branches.beta[14] = θ[i][13]*θs[13];
-                systems[i].branches.beta[24] = θ[i][14]*θs[14];
-                systems[i].branches.beta[32] = θ[i][15]*θs[15];
                 for j in [1:4;] # popliteal
                     systems[i].branches.beta[j] *= 1/3*(θ[i][13]*θs[13]/systems[i].branches.beta[14]+
                         θ[i][14]*θs[14]/systems[i].branches.beta[24]+θ[i][15]*θs[15]/systems[i].branches.beta[32]);
@@ -553,6 +551,9 @@ elseif assimflag == "yes"
                 for j in [16,25:31;] # peroneal
                     systems[i].branches.beta[j] *= θ[i][15]*θs[15]/systems[i].branches.beta[32];
                 end
+                systems[i].branches.beta[14] = θ[i][13]*θs[13];
+                systems[i].branches.beta[24] = θ[i][14]*θs[14];
+                systems[i].branches.beta[32] = θ[i][15]*θs[15];
                 # systems[i].branches.A0[14] = θ[i][9]*θs[9];
                 # systems[i].branches.A0[24] = θ[i][10]*θs[10];
                 # systems[i].branches.A0[31] = θ[i][11]*θs[11];
@@ -728,7 +729,7 @@ if saveflag == "yes"
         end
         vnames = ["t" "x" "Px" "theta" "thetascale" "Pt" "lb" "ub"];
         for i in 1:length(vnames)
-            file = MAT.matopen("$(vnames[i])_beta_maintain_p.mat","w");
+            file = MAT.matopen("$(vnames[i])_adjust_beta.mat","w");
             if vnames[i] == "t"
                 write(file,"t",tout)
             elseif vnames[i] == "x"
