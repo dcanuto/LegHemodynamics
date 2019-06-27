@@ -23,10 +23,10 @@ elseif assimflag == "yes"
     if rstflag == "no"
         loadfiles = ["arterylist_2_thick_branches.txt" for i=1:ensemblesize];
     elseif rstflag == "yes"
-        loadfiles = ["adjust_beta_$i.mat" for i=1:ensemblesize];
+        loadfiles = ["big_noise_3_$i.mat" for i=1:ensemblesize];
     end
-    systems = pmap((a1)->LegHemodynamics.buildall(a1;numbeatstotal=5,restart=rstflag),loadfiles);
-    savefiles = ["adjust_beta_$i.mat" for i=1:ensemblesize];
+    systems = pmap((a1)->LegHemodynamics.buildall(a1;numbeatstotal=1,restart=rstflag),loadfiles);
+    savefiles = ["big_noise_4_$i.mat" for i=1:ensemblesize];
     if rstflag == "no" # randomize ICs on new ensemble
         soln = pmap((a1)->LegHemodynamics.applycustomics!(a1),systems);
         systems = [soln[i] for i=1:ensemblesize];
@@ -371,7 +371,9 @@ elseif assimflag == "yes"
                 end
                 # println("New time step size: $(systems[1].solverparams.h) s")
                 # re-discretize
-                systems = pmap((a1,a2)->LegHemodynamics.rediscretizet!(a1,a2),systems,n);
+                if systems[1].solverparams.numbeats < systems[1].solverparams.numbeatstotal
+                    systems = pmap((a1,a2)->LegHemodynamics.rediscretizet!(a1,a2),systems,n);
+                end
             end
 
             # forecast step
@@ -601,7 +603,9 @@ elseif assimflag == "yes"
                 end
                 println("New time step size: $(systems[1].solverparams.h) s")
                 # re-discretize
-                systems = pmap((a1,a2)->LegHemodynamics.rediscretizet!(a1,a2),systems,n);
+                if systems[1].solverparams.numbeats < systems[1].solverparams.numbeatstotal
+                    systems = pmap((a1,a2)->LegHemodynamics.rediscretizet!(a1,a2),systems,n);
+                end
             end
 
             # corrected forecast w/ analysis parameters
@@ -667,9 +671,10 @@ elseif assimflag == "yes"
                     push!(ubx[end],q[2])
                 end
             end
+
+            # output measurement time
+            push!(tout,systems[1].t[n[1]])
         end
-        # output measurement time
-        push!(tout,systems[1].t[n[1]])
     end
     tt = toc();
     for i = 1:ensemblesize
@@ -729,7 +734,7 @@ if saveflag == "yes"
         end
         vnames = ["t" "x" "Px" "theta" "thetascale" "Pt" "lb" "ub"];
         for i in 1:length(vnames)
-            file = MAT.matopen("$(vnames[i])_adjust_beta.mat","w");
+            file = MAT.matopen("$(vnames[i])_big_noise_4.mat","w");
             if vnames[i] == "t"
                 write(file,"t",tout)
             elseif vnames[i] == "x"
