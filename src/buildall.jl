@@ -32,7 +32,7 @@ function buildall(filename="test.csv";numbeatstotal=1,restart="no",injury="no")
         142.5643,95.1046]*gTokg/(mmTom^4);
     Cdefault = [0.08972235,0.04926296,0.06072485,0.06789874,0.03944552,0.02707124,
         0.39707822,0.06488707,0.02388675,0.03631963,0.04667319,0.19569034,0.13150028,
-        0.04643721,0.02681318,0.04830696,0.0723676]*(mmTom^4)/gTokg;
+        0.04643721,0.02681318,0.04830696,0.00723676]*(mmTom^4)/gTokg;
     if restart == "no"
         system = LegHemodynamics.LegSystem(filename);
         system.solverparams.numbeatstotal = numbeatstotal;
